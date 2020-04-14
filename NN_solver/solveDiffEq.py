@@ -8,14 +8,14 @@ from neuralNetwork import Net
 
 torch.manual_seed(0)
 
-numEpochs = 50
-batch_size = 1
-lr = 0.03
+numEpochs = 500
+batch_size = 5
+lr = 0.007
 
 x_start = 0
-x_end = 1
+x_end = 3.14
 
-training_steps = 100
+training_steps = 500
 testing_steps = 1000
 
 training_data = torch.linspace(x_start, x_end, steps=training_steps)
@@ -49,24 +49,33 @@ def dpsiTrial_dx(x):
 def G(x):
     psi_trial_ = psi_trial(x)
     dpsiTrial_dx_ = dpsiTrial_dx(x)
-    return (dpsiTrial_dx_ +  psi_trial_ - torch.cos(x))
+    return (dpsiTrial_dx_ + psi_trial_ - torch.cos(x))
 
 
 criterion = nn.MSELoss()
 optimizer = optim.SGD(net.parameters(), lr=lr)
 
 for epoch in range(numEpochs):
-    for index, x in enumerate(training_loader):
-
-        #x = torch.tensor([i], requires_grad=True) ###
-        x.requires_grad_(True)
+    for batch_index, batch in enumerate(training_loader):
         
-        G_ =  G(x)
-        loss = criterion(G_, torch.tensor([0.]))
+        loss = torch.zeros([1])
+        #print(loss)
+        
+        for x in batch:
+
+            x.resize_((1,1))
+            x.requires_grad_(True)
+            G_ =  G(x)
+            loss += criterion(G_, torch.tensor([0.]))
+            #print(loss)
+        #print(loss)
+        loss /= len(batch)
+        #print(loss)
+        #raise SystemExit
         optimizer.zero_grad()   
         loss.backward()
         optimizer.step()
-        print(f"epoch: {epoch} - index: {index} - loss:{loss}")
+        print(f"epoch: {epoch} - batch: {batch_index} - loss:{loss.item():.3e}")
 
 #solution of the NN
 psi_trial_array = np.array([])
