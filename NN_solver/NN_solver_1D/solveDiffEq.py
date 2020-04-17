@@ -8,14 +8,14 @@ from neuralNetwork import Net
 
 torch.manual_seed(0)
 
-numEpochs = 1000
+numEpochs = 500
 batch_size = 5
 lr = 0.03
 
 x_start = 0
 x_end = 2
 
-training_steps = 100
+training_steps = 20
 testing_steps = 10000
 
 training_data = torch.linspace(x_start, x_end, steps=training_steps)
@@ -102,5 +102,5 @@ plt.figure()
 err = exact_solution(testing_data) - psi_trial_array
 plt.plot(testing_data, np.abs(err), 'k')
 plt.xlabel("x")
-plt.ylabel("err(x)")
+plt.ylabel("|err(x)|")
 plt.show()
