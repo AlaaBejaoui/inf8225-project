@@ -11,15 +11,6 @@ Laplace_FD.solve()
 print("Solving the Laplace equation ...")
 
 # Plot results
-T_plot = np.reshape(Laplace_FD.T, (Laplace_FD.nx, Laplace_FD.ny))
-fig, ax = plt.subplots()
-contourPlot = ax.contourf(Laplace_FD.x, Laplace_FD.y, Laplace_FD.T, levels=20, cmap="coolwarm")
-ax.contour(contourPlot, linewidths=1, colors="k")
-ax.set_title("Title")
-ax.set_xlabel("x")
-ax.set_ylabel("y")
-colorBar = plt.colorbar(contourPlot)
-colorBar.set_label("T[K]")
-plt.show()
+
 
 
