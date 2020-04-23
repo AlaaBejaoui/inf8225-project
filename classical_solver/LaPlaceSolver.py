@@ -1,12 +1,13 @@
 import numpy as np
 import pickle
+# TODO: move time_it to utlility and add logger
 from NN_solver.NN_solver_1D.timing import time_it
 
 
 class LaPlaceSolver:
 
     def __init__(self, x_start, x_end, nx, y_start, y_end, ny, lambda_, rho, c):
-        
+
         self.x_start = x_start
         self.x_end = x_end
         self.y_start = y_start
@@ -65,7 +66,6 @@ class LaPlaceSolver:
 
     @time_it
     def solve(self):
-        # Initialization
         A = np.zeros((self.nx*self.ny, self.nx*self.ny))
         r = np.zeros((self.nx*self.ny, 1))
         
@@ -124,7 +124,9 @@ class LaPlaceSolver:
         import matplotlib.pyplot as plt
         with open("results/laplace.pkl", "rb") as f:
             T = pickle.load(f)
+
         T_plot = np.reshape(T, (self.nx, self.ny))
+
         fig, ax = plt.subplots()
         contour_plot = ax.contourf(self.x, self.y, T_plot, levels=20, cmap="coolwarm")
         ax.contour(contour_plot, linewidths=1, colors="k")

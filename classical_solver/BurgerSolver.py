@@ -1,6 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as plt
+import pickle
 import copy
+import matplotlib.pyplot as plt
 from NN_solver.NN_solver_1D.timing import time_it
 
 
@@ -14,19 +15,19 @@ class BurgerSolver:
         self.t_end = t_end
         self.CFL = CFL
         self.N = N
-        self.u = np.zeros((self.N+1, 1))
-        self.u_old = np.zeros_like(self.u)
-        self.u_exact = np.zeros((self.N+1, 1))
+        self.u = np.zeros((self.N, 1))
+        self.u_exact = np.zeros_like(self.u)
+        self.u_exact_list = []
+        self.u_list = []
+        self.t_list = []
+        self.initial_condition = None
         self.u_left = None
         self.u_right = None
-        self.u_exact_list = None
-        self.u_list = None
-        self.t_list = None
-        self.fig = plt.figure()
-        self.ax = plt.axes()
-        self.ani = None
+        self.x_0 = None
+        self.fig, self.ax = plt.subplots()
         self.numerical_solution = None
         self.exact_solution = None
+        self.animation = None
 
     # Compute step size
     @property
@@ -36,120 +37,125 @@ class BurgerSolver:
     # Grid
     @property
     def x(self):
-        # return self.x = np.linspace(self.x_start+self.dx/2, self.x_end-self.dx/2, N)
-        return np.linspace(self.x_start-self.dx, self.x_end+self.dx, self.N+1)
-
-    @property
-    def x_exact(self):
-        return np.linspace(self.x_start, self.x_end, self.N)
+        return np.linspace(self.x_start+self.dx/2, self.x_end-self.dx/2, self.N)
 
     # Set initial condition
-    def set_initial_condition(self, initial_condition, u_left, u_right):
+    def set_initial_condition(self, initial_condition, u_left, u_right, x_0):
+        self.initial_condition = initial_condition
+
+        # Shock or rarefaction
         if initial_condition == "Shock" or initial_condition == "Rarefaction":
             self.u_left = u_left
             self.u_right = u_right
-            self.u_old[self.x < 0.5] = self.u_left
-            self.u_exact[self.x < 0.5] = self.u_left
-            self.u_old[self.x >= 0.5] = self.u_right
-            self.u_exact[self.x >= 0.5] = self.u_right
-            self.u_list = [self.u_old]
-            self.u_exact_list = [self.u_exact]
+            self.x_0 = x_0
+            # Numerical solution
+            self.u[self.x < x_0] = self.u_left
+            self.u[self.x >= x_0] = self.u_right
+            self.u_list.append(copy.deepcopy(self.u))
+            # Exact solution
+            self.u_exact[self.x < x_0] = self.u_left
+            self.u_exact[self.x >= x_0] = self.u_right
+            self.u_exact_list.append(copy.deepcopy(self.u_exact))
+
+        # Sine
         elif initial_condition == "Sine":
-            self.u_old = np.sin(self.x)
+            self.u = np.sin(self.x)
             self.u_exact = np.sin(self.x)
+
         else:
             raise NotImplementedError("Initial condition not implemented")
 
     @time_it
     def solve(self):
         t = self.t_start
-        self.t_list = [t]
-        j = 0
+        self.t_list.append(t)
+
         while t <= self.t_end:
-            j += 1
-            # Compute the exact solution
-            for i in range(self.N):
-                self.u_exact[i] = self.exact_burger(self.u_left, self.u_right, self.x_exact[i], t)
-
-            self.u_exact_list.append(self.u_exact)
-            # self.u_exact_list = np.column_stack((self.u_exact_list, self.u_exact))
-
             # Compute the time step from the CFL condition
-            # a_max = np.max(np.abs(u))
-            # dt = (CFL*dx)/a_max
-            dt = 0.001
+            a_max = np.max(np.abs(self.u))
+            dt = (self.CFL * self.dx) / a_max
 
-            # if t+dt > self.t_end:
-            #    dt = self.t_end-t
-            # if t >= self.t_end:
-            #    break
+            if t + dt > self.t_end:
+                dt = self.t_end - t
+            if t >= self.t_end:
+                break
 
+            # Update t
             t += dt
             self.t_list.append(np.round(t, 2))
 
-            self.u_old[0] = self.u_left
-            self.u_old[-1] = self.u_old[-2]
+            u_new = np.zeros_like(self.u)
+            for i in range(self.N):
+                # Compute exact solution
+                if (self.initial_condition == "Shock") or (self.initial_condition == "Rarefaction"):
+                    self.u_exact[i] = self.exact_burger(self.u_left, self.u_right, self.x[i], t, self.x_0)
 
-            for i in range(1, self.N):
+                # Compute numerical solution
                 # Left boundary
-                # if i == 0:
-                #    u_l = u_1 # u[-1]
-                #    u_r = u[1]
+                if i == 0:
+                    u_l = self.u_left
+                    u_r = self.u[1]
                 # Right boundary
-                # elif i == Ncell-1:
-                #    u_l = u[-2]
-                #    u_r = u[-1] # u[0]
+                elif i == self.N-1:
+                    u_l = self.u[-2]
+                    u_r = self.u[-1]
                 # Inner points
-                # else:
-                #    u_l = u[i-1]
-                #    u_r = u[i+1]
+                else:
+                    u_l = self.u[i-1]
+                    u_r = self.u[i+1]
 
                 # Flux
-                f_l = self.gudonov_flux(self.u_old[i-1], self.u_old[i])
-                f_r = self.gudonov_flux(self.u_old[i], self.u_old[i + 1])
+                f_l = self.gudonov_flux(u_l, self.u[i])
+                f_r = self.gudonov_flux(self.u[i], u_r)
 
                 # Update
-                self.u[i] = self.u_old[i] - (dt/self.dx)*(f_r-f_l)
+                u_new[i] = self.u[i] - (dt/self.dx)*(f_r-f_l)
 
-            self.u_old = copy.deepcopy(self.u)
-            self.u_list.append(self.u)
-            # self.u_list = np.column_stack((self.u_list, self.u))
+            self.u = copy.deepcopy(u_new)
+
+            self.u_list.append(copy.deepcopy(self.u))
+            if (self.initial_condition == "Shock") or (self.initial_condition == "Rarefaction"):
+                self.u_exact_list.append(copy.deepcopy(self.u_exact))
 
     @staticmethod
-    def exact_burger(u_left, u_right, x, t):
+    def exact_burger(u_left, u_right, x, t, x_0):
         # Shock
         if u_left > u_right:
             # Compute the shock speed from the Rankine-Hugoniot condition
             s = (u_left + u_right)/2
-            if s*t > (x-0.5):
+            if (x-x_0)/t < s:
                 u = u_left
             else:
                 u = u_right
+
         # Rarefaction
         elif u_left < u_right:
             a_left = u_left
             a_right = u_right
-            if a_left*t > (x-0.5):
+            if (x-x_0)/t < a_left:
                 u = u_left
-            elif a_right*t < (x-0.5):
+            elif (x-x_0)/t > a_right:
                 u = u_right
             else:
                 u = (x-0.5)/t
+
         # Constant state: u_left = u_right
         else:
             u = u_left
+
         return u
 
     @staticmethod
     def gudonov_flux(u_left, u_right):
         # Shock
         if u_left > u_right:
-            # Compute the shock speed from the Rankine-Hugoniot condition
+            # Compute shock speed
             s = (u_left+u_right)/2
             if s > 0:
                 u = u_left
             else:
                 u = u_right
+
         # Rarefaction
         elif u_left < u_right:
             a_left = u_left
@@ -160,6 +166,7 @@ class BurgerSolver:
                 u = u_right
             else:
                 u = 0
+
         # Constant state: u_left = u_right
         else:
             u = u_left
@@ -168,14 +175,23 @@ class BurgerSolver:
 
         return f
 
+    def save_results(self):
+        results_dict = {"u": self.u_list, "u_exact": self.u_exact_list, "t": self.t_list}
+        with open("results/burger.pkl", "wb") as f:
+            pickle.dump(results_dict, f)
+
     def plot_results(self):
-        import matplotlib
+        # TODO: mention problem pycharm animation
         import matplotlib.animation as animation
 
-        # matplotlib.use("TkAgg")
+        with open("results/burger.pkl", "rb") as f:
+            results_dict = pickle.load(f)
 
-        self.ani = animation.FuncAnimation(self.fig, self.animate, init_func=self.init_animation,
-                                           frames=1000, interval=10)
+        t = results_dict["t"]
+
+        self.animation = animation.FuncAnimation(self.fig, self.animate, init_func=self.init_animation,
+                                                 frames=len(t), interval=10, repeat=False)
+
         plt.show()
 
     def init_animation(self):
@@ -183,18 +199,29 @@ class BurgerSolver:
         self.ax.set_xlabel("x")
         self.ax.set_xlim((self.x_start, self.x_end))
         self.ax.set_ylabel("u")
-        self.ax.set_ylim((0, 2))
+        if self.initial_condition == "Shock":
+            self.ax.set_ylim((self.u_right, self.u_left))
+        elif self.initial_condition == "Rarefaction":
+            self.ax.set_ylim((self.u_left, self.u_right))
+        elif self.initial_condition == "Sine":
+            self.ax.set_ylim((-1, 1))
         self.ax.set_title(f"t = {self.t_start}")
         self.numerical_solution, = self.ax.plot([], [], "ro")
         self.exact_solution, = self.ax.plot([], [], "k")
-        # self.ax.legend(["Numerical solution", "Exact solution"])
+        self.ax.legend(["Numerical solution", "Exact solution"], loc="upper left")
 
     def animate(self, i):
-        y = self.u_list[:, i]
-        y_exact = self.u_exact_list[:, i]
-        self.numerical_solution.set_data(self.x, y)
-        self.exact_solution.set_data(self.x_exact, y_exact)
-        self.ax.set_title(f"t = {self.t_list[i]}")
+        with open("results/burger.pkl", "rb") as f:
+            results_dict = pickle.load(f)
+
+        u = results_dict["u"]
+        u_exact = results_dict["u_exact"]
+        t = results_dict["t"]
+
+        self.numerical_solution.set_data(self.x, u[i])
+        self.exact_solution.set_data(self.x, u_exact[i])
+        self.ax.set_title(f"t = {t[i]}")
+        plt.savefig(f"figures/burger_results_{str(t[i])}.svg")
 
 
 
