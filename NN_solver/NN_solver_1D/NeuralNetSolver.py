@@ -25,10 +25,10 @@ class NeuralNetSolver:
         self.loss_array = np.array([])
         self.psi_trial_array = np.array([])
 
-        self.diff_equation_ = ""
-        self.F_ = ""
-        self.exact_solution_ = ""
-        self.psi_hat_ = ""
+        self.diff_equation_ = None 
+        self.F_ = None
+        self.exact_solution_ = None
+        self.psi_hat_ = None
 
     @property
     def training_data(self):
@@ -89,7 +89,7 @@ class NeuralNetSolver:
             self.psi_trial_array = np.append(
                 self.psi_trial_array, self.psi_trial(x_test).item())
 
-        # comparing the two solutions
+        # training loss logplot
         plt.figure()
         plt.semilogy(self.loss_array)
         plt.xlabel("iter")
