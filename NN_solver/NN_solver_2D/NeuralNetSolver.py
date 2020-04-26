@@ -14,7 +14,7 @@ import torch
 
 class NeuralNetSolver:
 
-    def __init__(self, numHiddenLayer, numUnits, activation, numEpochs, batch_size, lr, x_start, x_end, y_start, y_end, training_steps, testing_steps, shuffle):
+    def __init__(self, numHiddenLayer, numUnits, activation, numEpochs, batch_size, lr, x_start, x_end, y_start, y_end, x_training_steps, y_training_steps, testing_steps, shuffle):
         self.net = Net(numHiddenLayer, numUnits, activation)
 
         self.numEpochs = numEpochs
@@ -24,7 +24,8 @@ class NeuralNetSolver:
         self.x_end = x_end
         self.y_start = y_start
         self.y_end = y_end
-        self.training_steps = training_steps
+        self.x_training_steps = x_training_steps
+        self.y_training_steps = y_training_steps
         self.testing_steps = testing_steps
         self.shuffle = shuffle
 
@@ -38,7 +39,7 @@ class NeuralNetSolver:
 
     @property
     def x_training_data(self):
-        return torch.linspace(self.x_start, self.x_end, steps=self.training_steps)
+        return torch.linspace(self.x_start, self.x_end, steps=self.x_training_steps)
 
     @property
     def x_testing_data(self):
@@ -46,7 +47,7 @@ class NeuralNetSolver:
 
     @property
     def y_training_data(self):
-        return torch.linspace(self.y_start, self.y_end, steps=self.training_steps)
+        return torch.linspace(self.y_start, self.y_end, steps=self.y_training_steps)
 
     @property
     def y_testing_data(self):
