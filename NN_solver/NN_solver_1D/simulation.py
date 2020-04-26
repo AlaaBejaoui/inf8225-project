@@ -6,7 +6,7 @@ from NN_solver.NN_solver_1D.NeuralNetSolver import NeuralNetSolver
 
 torch.manual_seed(0)
 
-# equation 1 (a trivial diff eq just to check if the code is working)
+# Equation 1 (a trivial differential equation just to check if the code is working)
 # solver = NeuralNetSolver(numHiddenLayer=0, numUnits=10, activation="leakyReLU",
 #                          numEpochs=50, batch_size=5, lr=0.03,
 #                          x_start=0, x_end=2, training_steps=100,
@@ -22,7 +22,7 @@ torch.manual_seed(0)
 # solver.set_exact_solution("0.5 * np.power(x,2)")
 
 
-# equation 2 (from paper page 8 problem 1)
+# Equation 2 (see paper Page 8, Problem 1)
 # solver = NeuralNetSolver(numHiddenLayer=0, numUnits=10, activation="leakyReLU",
 #                          numEpochs=50, batch_size=5, lr=0.03,
 #                          x_start=0, x_end=1, training_steps=100,
@@ -38,7 +38,7 @@ torch.manual_seed(0)
 # solver.set_exact_solution(
 #     "((np.exp(-np.power(x,2)/2) )/(1+x+np.power(x,3))) + np.power(x,2)")
 
-# equation 3 (from paper page 8 problem 2)
+# Equation 3 (see paper Page 8, Problem 2)
 solver = NeuralNetSolver(numHiddenLayer=0, numUnits=10, activation="leakyReLU",
                          numEpochs=50, batch_size=5, lr=0.03,
                          x_start=0, x_end=2, training_steps=100,

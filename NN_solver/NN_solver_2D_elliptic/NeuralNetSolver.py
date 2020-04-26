@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.append(os.getcwd())
 from utilities.timing import time_it
-from NN_solver.NN_solver_2D.neuralNetwork import Net
+from NN_solver.NN_solver_2D_elliptic.neuralNetwork import Net
 from matplotlib import ticker, cm
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,7 +14,7 @@ import torch
 
 class NeuralNetSolver:
 
-    def __init__(self, numHiddenLayer, numUnits, activation, numEpochs, batch_size, lr, x_start, x_end, y_start, y_end, x_training_steps, y_training_steps, testing_steps, shuffle):
+    def __init__(self, numHiddenLayer, numUnits, activation, numEpochs, batch_size, lr, x_start, x_end, y_start, y_end, x_training_steps, y_training_steps, testing_steps, shuffle, filename):
         self.net = Net(numHiddenLayer, numUnits, activation)
 
         self.numEpochs = numEpochs
@@ -36,6 +36,8 @@ class NeuralNetSolver:
         self.F_ = None
         self.exact_solution_ = None
         self.psi_hat_ = None
+
+        self.filename = filename
 
     @property
     def x_training_data(self):
@@ -80,6 +82,7 @@ class NeuralNetSolver:
     @time_it
     def solve(self):
         criterion = nn.MSELoss()
+        
         # optimizer = optim.SGD(self.net.parameters(), lr=self.lr, momentum=0.9, nesterov=True)
         optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
 
@@ -105,98 +108,56 @@ class NeuralNetSolver:
                 optimizer.step()
 
                 print(
-                    f"epoch: {epoch} - batch: {batch_index} - loss:{loss.item():.3e}")
+                    f"Epoch: {epoch} - Batch: {batch_index} - Loss:{loss.item():.3e}")
 
     def psi_trial(self, x, y):
         return (self.psi_hat(x, y) + self.F(x, y) * self.net(torch.tensor([x, y])))
 
-    def dpsiTrial_dx_dy(self, x, y):
+    def dpsiTrial_dx2_dy2(self, x, y):
         x.requires_grad_(True)
         y.requires_grad_(True)
+
         psi_trial_ = self.psi_trial(x, y)
-        psi_trial_.backward(create_graph=True)
-        grad_x = x.grad
-        grad_y = y.grad
-        return grad_x, grad_y
+        grad_x, = torch.autograd.grad(psi_trial_,x,create_graph=True)
+        hessian_x, = torch.autograd.grad(grad_x,x,create_graph=True)
+        hessian_xy, = torch.autograd.grad(grad_x,y,create_graph=True)
+
+        grad_y, = torch.autograd.grad(psi_trial_,y,create_graph=True)
+        hessian_y, = torch.autograd.grad(grad_y,y,create_graph=True)
+        hessian_yx, = torch.autograd.grad(grad_y,x,create_graph=True)
+
+        assert torch.abs(hessian_xy-hessian_yx) < 1e-04, "Mixed derivatives must be equal!"
+
+        return hessian_x, hessian_y
 
     def G(self, x, y):
         psi_trial_ = self.psi_trial(x, y)
-        dpsiTrial_dx_, dpsiTrial_dy_ = self.dpsiTrial_dx_dy(x, y)
-        return self.diff_equation(x, y, dpsiTrial_dx_, dpsiTrial_dy_, psi_trial_)
+        dpsiTrial_dx2_, dpsiTrial_dy2_ = self.dpsiTrial_dx2_dy2(x, y)
+        return self.diff_equation(x, y, dpsiTrial_dx2_, dpsiTrial_dy2_, psi_trial_)
 
-    def plot(self):
 
-        # training loss logplot
-        plt.figure()
-        plt.title("training loss")
-        plt.xlabel("iter")
-        plt.ylabel("loss")
-        plt.semilogy(self.loss_array)
-
-        # NN solution
-        fig = plt.figure()
-        Z_NN = torch.zeros_like(self.testing_grid[0])
-        for row in range(Z_NN.shape[0]):
-            for column in range(Z_NN.shape[1]):
-                Z_NN[row, column] = self.psi_trial(
-                    self.testing_grid[0][row, column], self.testing_grid[1][row, column])
-        left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
-        ax = fig.add_axes([left, bottom, width, height])
-        cp = ax.contourf(
-            self.testing_grid[0], self.testing_grid[1], Z_NN.detach().numpy(), 40)
-        ax.set_title('Contour Plot of the NN solution')
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        cbar = fig.colorbar(cp)
-
-        # exact solution contour plot
-        fig = plt.figure()
-        Z_exact = self.exact_solution(
-            self.testing_grid[0], self.testing_grid[1])
-        left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
-        ax = fig.add_axes([left, bottom, width, height])
-        cp = ax.contourf(self.testing_grid[0],
-                         self.testing_grid[1], Z_exact, 40)
-        ax.set_title('Contour Plot of the exact solution')
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        cbar = fig.colorbar(cp)
-
-        # error
-        fig = plt.figure()
-        left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
-        ax = fig.add_axes([left, bottom, width, height])
-        err = Z_NN - Z_exact
-        cp = ax.contourf(self.testing_grid[0], self.testing_grid[1], np.abs(
-            err.detach().numpy()), 40)
-        ax.set_title('Contour Plot of the error')
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        cbar = fig.colorbar(cp)
-        plt.show()
-
-    # exact solution
+    # Exact solution
     def exact_solution(self, x, y):
         if not(self.exact_solution_):
-            raise Exception("exact solution not set yet!")
+            raise Exception("Exact solution not set yet!")
         return eval(self.exact_solution_)
 
-    # differential equation to solve
+    # Differential equation
     def diff_equation(self, x, y, dpsi_dx2, dpsi_dy2, psi):
         if not(self.diff_equation_):
-            raise Exception("differential equation not set yet!")
+            raise Exception("Differential equation not set yet!")
         return eval(self.diff_equation_)
 
-    # function that constraints the neural network
+    # Function that constraints the neural network
     def F(self, x, y):
         if not(self.F_):
-            raise Exception("function F not set yet!")
+            raise Exception("Function F not set yet!")
         return eval(self.F_)
 
-    # function that satisfies the boundary conditions
+    # Function that satisfies the boundary conditions
     def psi_hat(self, x, y):
         if not(self.psi_hat_):
-            raise Exception("function psi hat not set yet!")
+            raise Exception("Function psi hat not set yet!")
         return eval(self.psi_hat_)
 
     def set_exact_solution(self, command):
@@ -210,3 +171,24 @@ class NeuralNetSolver:
 
     def set_psi_hat(self, command):
         self.psi_hat_ = command
+
+    def plot(self):
+
+        from utilities.save_results_2D import save_results_elliptic
+        from utilities.plot_results_2D import plot_results_elliptic
+
+        X =  self.testing_grid[0]
+        Y =  self.testing_grid[1]
+        nn_solution = torch.zeros_like(X)
+        for row in range(nn_solution.shape[0]):
+            for column in range(nn_solution.shape[1]):
+                nn_solution[row, column] = self.psi_trial(X[row, column], Y[row, column])
+        exact_solution = self.exact_solution(X, Y)
+        error = np.abs(exact_solution - nn_solution.detach().numpy())
+        training_loss = self.loss_array
+
+        save_results_elliptic(self.filename, X, Y,  nn_solution.detach().numpy(), exact_solution, error, training_loss)
+        plot_results_elliptic(self.filename)
+
+
+    

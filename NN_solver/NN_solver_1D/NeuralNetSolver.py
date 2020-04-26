@@ -54,7 +54,9 @@ class NeuralNetSolver:
     @time_it
     def solve(self):
         criterion = nn.MSELoss()
+
         optimizer = optim.SGD(self.net.parameters(), lr=self.lr)
+        # optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
 
         for epoch in range(self.numEpochs):
 
@@ -136,11 +138,11 @@ class NeuralNetSolver:
 
         x =  self.testing_data
         nn_solution = self.psi_trial_array
-        exact_solution = self.exact_solution(self.testing_data)
-        error = np.abs(self.exact_solution(self.testing_data) - self.psi_trial_array)
+        exact_solution = self.exact_solution(x)
+        error = np.abs(self.exact_solution(x) - nn_solution)
         training_loss = self.loss_array
 
-        save_results(self.filename,x, nn_solution, exact_solution, error, training_loss)
+        save_results(self.filename, x, nn_solution, exact_solution, error, training_loss)
         plot_results(self.filename)
 
     
