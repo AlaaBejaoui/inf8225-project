@@ -11,7 +11,8 @@ torch.manual_seed(0)
 #                          numEpochs=50, batch_size=5, lr=0.03,
 #                          x_start=0, x_end=2, training_steps=100,
 #                          testing_steps=1000,
-#                          shuffle=True)  
+#                          shuffle=True,
+#                          filename="1D_equation_1")  
 
 
 # solver.set_diff_equation(
@@ -26,7 +27,8 @@ torch.manual_seed(0)
 #                          numEpochs=50, batch_size=5, lr=0.03,
 #                          x_start=0, x_end=1, training_steps=100,
 #                          testing_steps=1000,
-#                          shuffle=True)  
+#                          shuffle=True,
+#                          filename="1D_equation_2")  
 
 
 # solver.set_diff_equation(
@@ -41,7 +43,8 @@ solver = NeuralNetSolver(numHiddenLayer=0, numUnits=10, activation="leakyReLU",
                          numEpochs=50, batch_size=5, lr=0.03,
                          x_start=0, x_end=2, training_steps=100,
                          testing_steps=1000,
-                         shuffle=True)  
+                         shuffle=True,
+                         filename="1D_equation_3")  
 
 
 solver.set_diff_equation(

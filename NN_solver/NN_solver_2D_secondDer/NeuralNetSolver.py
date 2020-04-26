@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.append(os.getcwd())
 from utilities.timing import time_it
-from NN_solver.NN_solver_2D.neuralNetwork import Net
+from NN_solver.NN_solver_2D_secondDer.neuralNetwork import Net
 from matplotlib import ticker, cm
 import matplotlib.pyplot as plt
 import numpy as np
@@ -110,19 +110,27 @@ class NeuralNetSolver:
     def psi_trial(self, x, y):
         return (self.psi_hat(x, y) + self.F(x, y) * self.net(torch.tensor([x, y])))
 
-    def dpsiTrial_dx_dy(self, x, y):
+    def dpsiTrial_dx2_dy2(self, x, y):
         x.requires_grad_(True)
         y.requires_grad_(True)
+
         psi_trial_ = self.psi_trial(x, y)
-        psi_trial_.backward(create_graph=True)
-        grad_x = x.grad
-        grad_y = y.grad
-        return grad_x, grad_y
+        grad_x, = torch.autograd.grad(psi_trial_,x,create_graph=True)
+        hessian_x, = torch.autograd.grad(grad_x,x,create_graph=True)
+        hessian_xy, = torch.autograd.grad(grad_x,y,create_graph=True)
+
+        grad_y, = torch.autograd.grad(psi_trial_,y,create_graph=True)
+        hessian_y, = torch.autograd.grad(grad_y,y,create_graph=True)
+        hessian_yx, = torch.autograd.grad(grad_y,x,create_graph=True)
+
+        assert torch.abs(hessian_xy-hessian_yx) < 1e-04, "Mixed derivatives must be equal!"
+
+        return hessian_x, hessian_y
 
     def G(self, x, y):
         psi_trial_ = self.psi_trial(x, y)
-        dpsiTrial_dx_, dpsiTrial_dy_ = self.dpsiTrial_dx_dy(x, y)
-        return self.diff_equation(x, y, dpsiTrial_dx_, dpsiTrial_dy_, psi_trial_)
+        dpsiTrial_dx2_, dpsiTrial_dy2_ = self.dpsiTrial_dx2_dy2(x, y)
+        return self.diff_equation(x, y, dpsiTrial_dx2_, dpsiTrial_dy2_, psi_trial_)
 
     def plot(self):
 

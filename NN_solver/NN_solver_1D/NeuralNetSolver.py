@@ -13,7 +13,7 @@ from utilities.timing import time_it
 
 class NeuralNetSolver:
 
-    def __init__(self, numHiddenLayer, numUnits, activation, numEpochs, batch_size, lr, x_start, x_end, training_steps, testing_steps, shuffle):
+    def __init__(self, numHiddenLayer, numUnits, activation, numEpochs, batch_size, lr, x_start, x_end, training_steps, testing_steps, shuffle, filename):
         self.net = Net(numHiddenLayer, numUnits, activation)
 
         self.numEpochs = numEpochs
@@ -32,6 +32,8 @@ class NeuralNetSolver:
         self.F_ = None
         self.exact_solution_ = None
         self.psi_hat_ = None
+
+        self.filename = filename
 
     @property
     def training_data(self):
@@ -72,7 +74,7 @@ class NeuralNetSolver:
                 optimizer.step()
                 
                 print(
-                    f"epoch: {epoch} - batch: {batch_index} - loss:{loss.item():.3e}")
+                    f"Epoch: {epoch} - Batch: {batch_index} - Loss:{loss.item():.3e}")
 
     def psi_trial(self, x):
         return (self.psi_hat(x) + self.F(x) * self.net(x))
@@ -87,60 +89,28 @@ class NeuralNetSolver:
         dpsiTrial_dx_ = self.dpsiTrial_dx(x)
         return self.diff_equation(x, dpsiTrial_dx_, psi_trial_)
 
-    def plot(self):
-
-        for x_test in self.__testing_loader:
-            self.psi_trial_array = np.append(
-                self.psi_trial_array, self.psi_trial(x_test).item())
-
-        # training loss logplot
-        plt.figure()
-        plt.semilogy(self.loss_array)
-        plt.xlabel("iter.")
-        plt.ylabel("loss")
-        plt.title("training loss")
-
-        # comparing the two solutions
-        plt.figure()
-        plt.plot(self.testing_data, self.psi_trial_array, 'r', label='NN solution')
-        plt.xlabel("x")
-        plt.ylabel("y(x)")
-        plt.plot(self.testing_data, self.exact_solution(
-            self.testing_data), 'k', label='exact solution')
-        plt.legend()
-
-        # error plot
-        plt.figure()
-        err = self.exact_solution(self.testing_data) - self.psi_trial_array
-        plt.plot(self.testing_data, np.abs(err), 'k')
-        plt.xlabel("x")
-        plt.ylabel("|err(x)|")
-        plt.title("error plot")
-
-        plt.show()
-
-    # exact solution
+    # Exact solution
     def exact_solution(self, x):
         if not(self.exact_solution_):
-            raise Exception("exact solution not set yet!")
+            raise Exception("Exact solution not set yet!")
         return eval(self.exact_solution_)
 
-    # differential equation to solve
+    # Differential equation 
     def diff_equation(self, x, dpsi_dx, psi):
         if not(self.diff_equation_):
-            raise Exception("differential equation not set yet!")
+            raise Exception("Differential equation not set yet!")
         return eval(self.diff_equation_)
 
-    # function that constraints the neural network
+    # Function that constraints the neural network
     def F(self, x):
         if not(self.F_):
-            raise Exception("function F not set yet!")
+            raise Exception("Function F not set yet!")
         return eval(self.F_) 
 
-    # function that satisfies the boundary conditions
+    # Function that satisfies the boundary conditions
     def psi_hat(self, x):
         if not(self.psi_hat_):
-            raise Exception("function psi hat not set yet!")
+            raise Exception("Function psi hat not set yet!")
         return eval(self.psi_hat_)
 
     def set_exact_solution(self, command):
@@ -154,3 +124,23 @@ class NeuralNetSolver:
 
     def set_psi_hat(self, command):
         self.psi_hat_ = command
+   
+    def plot(self):
+
+        from utilities.save_results_1D import save_results
+        from utilities.plot_results_1D import plot_results
+
+        for x_test in self.__testing_loader:
+            self.psi_trial_array = np.append(
+                self.psi_trial_array, self.psi_trial(x_test).item())
+
+        x =  self.testing_data
+        nn_solution = self.psi_trial_array
+        exact_solution = self.exact_solution(self.testing_data)
+        error = np.abs(self.exact_solution(self.testing_data) - self.psi_trial_array)
+        training_loss = self.loss_array
+
+        save_results(self.filename,x, nn_solution, exact_solution, error, training_loss)
+        plot_results(self.filename)
+
+    

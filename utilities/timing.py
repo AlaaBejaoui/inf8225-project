@@ -5,5 +5,5 @@ def time_it(func):
         start = time.time()
         func(*args, **kwargs)
         end = time.time()
-        print(f"solving this differential equation took {end-start} s.")
+        print(f"Solving this differential equation took {end-start} s.")
     return wrapper
