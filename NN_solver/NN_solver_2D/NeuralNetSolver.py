@@ -1,11 +1,15 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader
-import numpy as np
+import os
+import sys
+sys.path.append(os.getcwd())
+from utilities.timing import time_it
+from NN_solver.NN_solver_2D.neuralNetwork import Net
+from matplotlib import ticker, cm
 import matplotlib.pyplot as plt
-from neuralNetwork import Net
-from timing import time_it
+import numpy as np
+from torch.utils.data import DataLoader
+import torch.optim as optim
+import torch.nn as nn
+import torch
 
 
 class NeuralNetSolver:
@@ -27,10 +31,10 @@ class NeuralNetSolver:
         self.loss_array = np.array([])
         self.psi_trial_array = np.array([])
 
-        self.diff_equation_ = ""
-        self.F_ = ""
-        self.exact_solution_ = ""
-        self.psi_hat_ = ""
+        self.diff_equation_ = None
+        self.F_ = None
+        self.exact_solution_ = None
+        self.psi_hat_ = None
 
     @property
     def x_training_data(self):
@@ -75,95 +79,102 @@ class NeuralNetSolver:
     @time_it
     def solve(self):
         criterion = nn.MSELoss()
-        optimizer = optim.SGD(self.net.parameters(), lr=self.lr, momentum=0.9, nesterov=True)
-        
+        # optimizer = optim.SGD(self.net.parameters(), lr=self.lr, momentum=0.9, nesterov=True)
+        optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
+
         for epoch in range(self.numEpochs):
 
             for batch_index, (x_batch, y_batch) in enumerate(self.__training_loader):
-                # print(x_batch,y_batch)
+
                 loss = torch.zeros([1])
+
                 for x, y in zip(x_batch, y_batch):
-                    x.resize_((1, 1))
-                    y.resize_((1, 1))
-                    x.requires_grad_(True)
-                    y.requires_grad_(True)
+
+                    x = x.reshape(-1)
+                    y = y.reshape(-1)
                     G_ = self.G(x, y)
                     loss += criterion(G_, torch.tensor([0.]))
+
                 loss /= len(x_batch)
                 self.loss_array = np.append(self.loss_array, loss.item())
 
                 optimizer.zero_grad()
+
                 loss.backward()
                 optimizer.step()
+
                 print(
                     f"epoch: {epoch} - batch: {batch_index} - loss:{loss.item():.3e}")
 
     def psi_trial(self, x, y):
         return (self.psi_hat(x, y) + self.F(x, y) * self.net(torch.tensor([x, y])))
 
-    def dpsiTrial_dx(self, x, y):
-        if x.grad != None and y.grad != None:
-            x.grad.data.zero_()
-            y.grad.data.zero_()
+    def dpsiTrial_dx_dy(self, x, y):
+        x.requires_grad_(True)
+        y.requires_grad_(True)
         psi_trial_ = self.psi_trial(x, y)
-        psi_trial_.backward()
-        return x.grad
-
-    def dpsiTrial_dy(self, x, y):
-        if x.grad != None and y.grad != None:
-            x.grad.data.zero_()
-            y.grad.data.zero_()
-        psi_trial_ = self.psi_trial(x, y)
-        psi_trial_.backward()
-        return y.grad
+        psi_trial_.backward(create_graph=True)
+        grad_x = x.grad
+        grad_y = y.grad
+        return grad_x, grad_y
 
     def G(self, x, y):
         psi_trial_ = self.psi_trial(x, y)
-        dpsiTrial_dx_ = self.dpsiTrial_dx(x, y)
-        dpsiTrial_dy_ = self.dpsiTrial_dy(x, y)
+        dpsiTrial_dx_, dpsiTrial_dy_ = self.dpsiTrial_dx_dy(x, y)
         return self.diff_equation(x, y, dpsiTrial_dx_, dpsiTrial_dy_, psi_trial_)
 
     def plot(self):
-    
+
+        # training loss logplot
+        plt.figure()
+        plt.title("training loss")
+        plt.xlabel("iter")
+        plt.ylabel("loss")
+        plt.semilogy(self.loss_array)
+
         # NN solution
-        fig = plt.figure(figsize=(4, 4))
-
+        fig = plt.figure()
         Z_NN = torch.zeros_like(self.testing_grid[0])
-        for line in range(Z_NN.shape[0]):
+        for row in range(Z_NN.shape[0]):
             for column in range(Z_NN.shape[1]):
-                # print(self.testing_grid[0][line, column])
-                # print()
-                # print(self.testing_grid[1][line, column])
-                Z_NN[line, column] = self.psi_trial(
-                    self.testing_grid[0][line, column], self.testing_grid[1][line, column])
-
+                Z_NN[row, column] = self.psi_trial(
+                    self.testing_grid[0][row, column], self.testing_grid[1][row, column])
         left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
         ax = fig.add_axes([left, bottom, width, height])
-        cp = ax.contour(self.testing_grid[0].detach().numpy(
-        ), self.testing_grid[1].detach().numpy(), Z_NN.detach().numpy(), 20)
-        ax.clabel(cp, inline=True,
-                  fontsize=10)
+        cp = ax.contourf(
+            self.testing_grid[0], self.testing_grid[1], Z_NN.detach().numpy(), 40)
         ax.set_title('Contour Plot of the NN solution')
         ax.set_xlabel('x')
         ax.set_ylabel('y')
+        cbar = fig.colorbar(cp)
 
         # exact solution contour plot
-        fig = plt.figure(figsize=(4, 4))
+        fig = plt.figure()
         Z_exact = self.exact_solution(
             self.testing_grid[0], self.testing_grid[1])
         left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
         ax = fig.add_axes([left, bottom, width, height])
-        cp = ax.contour(self.testing_grid[0],
-                        self.testing_grid[1], Z_exact, 20)
-        ax.clabel(cp, inline=True,
-                  fontsize=10)
+        cp = ax.contourf(self.testing_grid[0],
+                         self.testing_grid[1], Z_exact, 40)
         ax.set_title('Contour Plot of the exact solution')
         ax.set_xlabel('x')
         ax.set_ylabel('y')
+        cbar = fig.colorbar(cp)
+
+        # error
+        fig = plt.figure()
+        left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
+        ax = fig.add_axes([left, bottom, width, height])
+        err = Z_NN - Z_exact
+        cp = ax.contourf(self.testing_grid[0], self.testing_grid[1], np.abs(
+            err.detach().numpy()), 40)
+        ax.set_title('Contour Plot of the error')
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        cbar = fig.colorbar(cp)
         plt.show()
 
     # exact solution
-
     def exact_solution(self, x, y):
         if not(self.exact_solution_):
             raise Exception("exact solution not set yet!")

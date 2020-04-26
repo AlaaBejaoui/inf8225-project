@@ -4,8 +4,11 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import numpy as np
 import matplotlib.pyplot as plt
-from neuralNetwork import Net
-from timing import time_it
+import os
+import sys
+sys.path.append(os.getcwd())
+from NN_solver.NN_solver_1D.neuralNetwork import Net
+from utilities.timing import time_it
 
 
 class NeuralNetSolver:
@@ -67,6 +70,7 @@ class NeuralNetSolver:
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+                
                 print(
                     f"epoch: {epoch} - batch: {batch_index} - loss:{loss.item():.3e}")
 
@@ -75,7 +79,7 @@ class NeuralNetSolver:
 
     def dpsiTrial_dx(self, x):
         psi_trial_ = self.psi_trial(x)
-        psi_trial_.backward()
+        psi_trial_.backward(create_graph=True)
         return x.grad
 
     def G(self, x):
@@ -92,16 +96,17 @@ class NeuralNetSolver:
         # training loss logplot
         plt.figure()
         plt.semilogy(self.loss_array)
-        plt.xlabel("iter")
+        plt.xlabel("iter.")
         plt.ylabel("loss")
+        plt.title("training loss")
 
         # comparing the two solutions
         plt.figure()
-        plt.plot(self.testing_data, self.psi_trial_array, 'r', label='NN')
+        plt.plot(self.testing_data, self.psi_trial_array, 'r', label='NN solution')
         plt.xlabel("x")
         plt.ylabel("y(x)")
         plt.plot(self.testing_data, self.exact_solution(
-            self.testing_data), 'k', label='exact')
+            self.testing_data), 'k', label='exact solution')
         plt.legend()
 
         # error plot
@@ -110,6 +115,7 @@ class NeuralNetSolver:
         plt.plot(self.testing_data, np.abs(err), 'k')
         plt.xlabel("x")
         plt.ylabel("|err(x)|")
+        plt.title("error plot")
 
         plt.show()
 
