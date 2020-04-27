@@ -16,7 +16,7 @@ solver = NeuralNetSolver(numHiddenLayer=0, numUnits=40, activation="leakyReLU",
 
 solver.set_diff_equation("x * dpsi_dx + dpsi_dt - x * t")
 solver.set_psi_hat("torch.pow(x, 2) + torch.exp(-torch.pow(x, 2))")
-solver.set_F("t")
+solver.set_F("t * x")
 solver.set_exact_solution(
     "x * (t-1) + np.power(x,2)*np.exp(-2*t) + np.exp(-np.power(x,2)*np.exp(-2*t)) + x*np.exp(-t)")
 
