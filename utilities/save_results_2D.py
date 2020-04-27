@@ -42,3 +42,14 @@ def save_results_FD(filename, X, Y, FD_solution, error):
 
     with open(f"results/{filename}.pkl", "wb") as f:
         pickle.dump(results_dict, f)
+
+def save_results_FV(filename, x, t, FV_solution, error=None):
+    results_dict = {}
+
+    results_dict["x"] = x
+    results_dict["t"] = t
+    results_dict["FV_solution"] = FV_solution
+    results_dict["error"] = error
+
+    with open(f"results/{filename}.pkl", "wb") as f:
+        pickle.dump(results_dict, f)

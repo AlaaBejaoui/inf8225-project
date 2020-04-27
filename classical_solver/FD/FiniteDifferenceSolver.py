@@ -1,5 +1,4 @@
 import numpy as np
-import pickle
 from utilities.timing import time_it
 
 
@@ -120,8 +119,7 @@ class FiniteDifferenceSolver:
         X = self.x
         Y = self.y
         FD_solution = np.reshape(self.psi, (self.nx, self.ny))
-        exact_solution = self.exact_solution
-        error = np.abs(exact_solution - FD_solution)
+        error = np.abs(self.exact_solution - FD_solution)
         save_results_FD(self.filename, X, Y, FD_solution, error)
         plot_results_FD(self.filename)
 

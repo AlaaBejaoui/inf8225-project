@@ -126,3 +126,33 @@ def plot_results_FD(filename):
     ax.contour(contour_plot, linewidths=1, colors="k")
     plt.colorbar(contour_plot)
     plt.savefig(f"figures/{filename}_error.svg")
+
+
+def plot_results_FV(filename):
+
+    with open(f"results/{filename}.pkl", "rb") as f:
+        results_dict = pickle.load(f)
+
+    x = results_dict["x"]
+    t = results_dict["t"]
+    FV_solution = results_dict["FV_solution"]
+    error = results_dict["error"]
+
+    # Plot FV_solution
+    fig, ax = plt.subplots()
+    ax.set_xlabel("x")
+    ax.set_ylabel("t")
+    contour_plot = ax.contourf(x, t, FV_solution, levels=40, cmap="coolwarm")
+    ax.contour(contour_plot, linewidths=1, colors="k")
+    plt.colorbar(contour_plot)
+    plt.savefig(f"figures/{filename}_solution.svg")
+
+    # Plot error
+    if error is not None:
+        fig, ax = plt.subplots()
+        ax.set_xlabel("x")
+        ax.set_ylabel("t")
+        contour_plot = ax.contourf(x, t, error, levels=20, cmap="coolwarm")
+        ax.contour(contour_plot, linewidths=1, colors="k")
+        plt.colorbar(contour_plot)
+        plt.savefig(f"figures/{filename}_error.svg")
